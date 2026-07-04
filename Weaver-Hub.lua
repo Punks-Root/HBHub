@@ -19,6 +19,8 @@ local HitboxExp = false
 
 local defaultWalkSpeed = 16
 local boostedWalkSpeed = 25
+local dashBoostSpeed = 100
+local dashBoostDuration = 0.15
 
 local function ApplyWalkSpeed()
     if Humanoid then
@@ -188,6 +190,19 @@ local function DestroyDashCooldownParts(root)
     end
 end
 
+local function ApplyDashBoost()
+    if Humanoid and HRP then
+        local originalSpeed = Humanoid.WalkSpeed
+        Humanoid.WalkSpeed = dashBoostSpeed
+        HRP.Velocity = HRP.CFrame.LookVector * dashBoostSpeed
+        task.delay(dashBoostDuration, function()
+            if Humanoid then
+                Humanoid.WalkSpeed = SpeedBoost and boostedWalkSpeed or defaultWalkSpeed
+            end
+        end)
+    end
+end
+
 local function ExpandHitboxes(tool)
     if not tool then
         return
@@ -211,10 +226,8 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 
     if NoDashCD and input.KeyCode == Enum.KeyCode.Q then
-        task.spawn(function()
-            task.wait(0.12)
-            DestroyDashCooldownParts(Character)
-        end)
+        DestroyDashCooldownParts(Character)
+        ApplyDashBoost()
     end
 end)
 
