@@ -17,14 +17,17 @@ local AntiStun = false
 local AntiRagdoll = false
 local HitboxExp = false
 
-local defaultWalkSpeed = 16
+local baseWalkSpeed = 16
 local boostedWalkSpeed = 25
-local dashBoostSpeed = 100
-local dashBoostDuration = 0.15
+local dashBoostSpeed = 80
+local dashBoostDuration = 0.18
+local dashing = false
+local dashEndTime = 0
+local dashVelocityPart
 
 local function ApplyWalkSpeed()
-    if Humanoid then
-        Humanoid.WalkSpeed = SpeedBoost and boostedWalkSpeed or defaultWalkSpeed
+    if Humanoid and not dashing then
+        Humanoid.WalkSpeed = SpeedBoost and boostedWalkSpeed or baseWalkSpeed
     end
 end
 
@@ -32,6 +35,7 @@ local function UpdateCharacter(char)
     Character = char
     Humanoid = char:FindFirstChildOfClass("Humanoid") or char:WaitForChild("Humanoid")
     HRP = char:FindFirstChild("HumanoidRootPart") or char:WaitForChild("HumanoidRootPart")
+    baseWalkSpeed = Humanoid.WalkSpeed or baseWalkSpeed
     ApplyWalkSpeed()
 end
 
@@ -190,16 +194,26 @@ local function DestroyDashCooldownParts(root)
     end
 end
 
+local function ClearDashVelocity()
+    if dashVelocityPart and dashVelocityPart.Parent then
+        dashVelocityPart:Destroy()
+    end
+    dashVelocityPart = nil
+end
+
 local function ApplyDashBoost()
-    if Humanoid and HRP then
-        local originalSpeed = Humanoid.WalkSpeed
+    if Humanoid and HRP and not dashing then
+        dashing = true
+        dashEndTime = tick() + dashBoostDuration
         Humanoid.WalkSpeed = dashBoostSpeed
-        HRP.Velocity = HRP.CFrame.LookVector * dashBoostSpeed
-        task.delay(dashBoostDuration, function()
-            if Humanoid then
-                Humanoid.WalkSpeed = SpeedBoost and boostedWalkSpeed or defaultWalkSpeed
-            end
-        end)
+
+        ClearDashVelocity()
+        dashVelocityPart = Instance.new("BodyVelocity")
+        dashVelocityPart.Name = "HB_DashVelocity"
+        dashVelocityPart.MaxForce = Vector3.new(1e5, 0, 1e5)
+        dashVelocityPart.P = 1250
+        dashVelocityPart.Velocity = HRP.CFrame.LookVector * dashBoostSpeed
+        dashVelocityPart.Parent = HRP
     end
 end
 
@@ -236,10 +250,18 @@ RunService.Heartbeat:Connect(function()
         return
     end
 
-    if SpeedBoost and Humanoid.WalkSpeed ~= boostedWalkSpeed then
-        Humanoid.WalkSpeed = boostedWalkSpeed
-    elseif not SpeedBoost and Humanoid.WalkSpeed ~= defaultWalkSpeed then
-        Humanoid.WalkSpeed = defaultWalkSpeed
+    if dashing then
+        if tick() >= dashEndTime then
+            dashing = false
+            ClearDashVelocity()
+            ApplyWalkSpeed()
+        end
+    else
+        if SpeedBoost and Humanoid.WalkSpeed ~= boostedWalkSpeed then
+            Humanoid.WalkSpeed = boostedWalkSpeed
+        elseif not SpeedBoost and Humanoid.WalkSpeed ~= baseWalkSpeed then
+            Humanoid.WalkSpeed = baseWalkSpeed
+        end
     end
 
     if AntiStun then
