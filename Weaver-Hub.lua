@@ -18,16 +18,23 @@ local AntiRagdoll = false
 local HitboxExp = false
 
 local originalWalkSpeed = 16
-local boostedWalkSpeed = 25
+local defaultBoostedWalkSpeed = 25
+local currentBoostedWalkSpeed = defaultBoostedWalkSpeed
 local dashBoostSpeed = 80
 local dashBoostDuration = 0.18
 local dashing = false
 local dashEndTime = 0
 local dashVelocityPart
 
+local function UpdateBoostedSpeed()
+    if Humanoid then
+        currentBoostedWalkSpeed = math.max(defaultBoostedWalkSpeed, originalWalkSpeed * 1.7)
+    end
+end
+
 local function ApplyWalkSpeed()
     if Humanoid and not dashing then
-        Humanoid.WalkSpeed = SpeedBoost and boostedWalkSpeed or originalWalkSpeed
+        Humanoid.WalkSpeed = SpeedBoost and currentBoostedWalkSpeed or originalWalkSpeed
     end
 end
 
@@ -36,8 +43,9 @@ local function UpdateCharacter(char)
     Humanoid = char:FindFirstChildOfClass("Humanoid") or char:WaitForChild("Humanoid")
     HRP = char:FindFirstChild("HumanoidRootPart") or char:WaitForChild("HumanoidRootPart")
     originalWalkSpeed = Humanoid.WalkSpeed or originalWalkSpeed
+    UpdateBoostedSpeed()
     if SpeedBoost then
-        Humanoid.WalkSpeed = boostedWalkSpeed
+        Humanoid.WalkSpeed = currentBoostedWalkSpeed
     else
         ApplyWalkSpeed()
     end
@@ -134,8 +142,8 @@ SpeedBtn.MouseButton1Click:Connect(function()
     UpdateButton(SpeedBtn, SpeedBoost)
     if Humanoid then
         if SpeedBoost then
-            originalWalkSpeed = Humanoid.WalkSpeed
-            Humanoid.WalkSpeed = boostedWalkSpeed
+            UpdateBoostedSpeed()
+            Humanoid.WalkSpeed = currentBoostedWalkSpeed
         else
             Humanoid.WalkSpeed = originalWalkSpeed
         end
