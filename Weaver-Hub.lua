@@ -17,7 +17,7 @@ local AntiStun = false
 local AntiRagdoll = false
 local HitboxExp = false
 
-local baseWalkSpeed = 16
+local originalWalkSpeed = 16
 local boostedWalkSpeed = 25
 local dashBoostSpeed = 80
 local dashBoostDuration = 0.18
@@ -27,7 +27,7 @@ local dashVelocityPart
 
 local function ApplyWalkSpeed()
     if Humanoid and not dashing then
-        Humanoid.WalkSpeed = SpeedBoost and boostedWalkSpeed or baseWalkSpeed
+        Humanoid.WalkSpeed = SpeedBoost and boostedWalkSpeed or originalWalkSpeed
     end
 end
 
@@ -35,8 +35,12 @@ local function UpdateCharacter(char)
     Character = char
     Humanoid = char:FindFirstChildOfClass("Humanoid") or char:WaitForChild("Humanoid")
     HRP = char:FindFirstChild("HumanoidRootPart") or char:WaitForChild("HumanoidRootPart")
-    baseWalkSpeed = Humanoid.WalkSpeed or baseWalkSpeed
-    ApplyWalkSpeed()
+    originalWalkSpeed = Humanoid.WalkSpeed or originalWalkSpeed
+    if SpeedBoost then
+        Humanoid.WalkSpeed = boostedWalkSpeed
+    else
+        ApplyWalkSpeed()
+    end
 end
 
 if LocalPlayer.Character then
@@ -128,7 +132,14 @@ end)
 SpeedBtn.MouseButton1Click:Connect(function()
     SpeedBoost = not SpeedBoost
     UpdateButton(SpeedBtn, SpeedBoost)
-    ApplyWalkSpeed()
+    if Humanoid then
+        if SpeedBoost then
+            originalWalkSpeed = Humanoid.WalkSpeed
+            Humanoid.WalkSpeed = boostedWalkSpeed
+        else
+            Humanoid.WalkSpeed = originalWalkSpeed
+        end
+    end
 end)
 
 StunBtn.MouseButton1Click:Connect(function()
@@ -257,11 +268,7 @@ RunService.Heartbeat:Connect(function()
             ApplyWalkSpeed()
         end
     else
-        if SpeedBoost and Humanoid.WalkSpeed ~= boostedWalkSpeed then
-            Humanoid.WalkSpeed = boostedWalkSpeed
-        elseif not SpeedBoost and Humanoid.WalkSpeed ~= baseWalkSpeed then
-            Humanoid.WalkSpeed = baseWalkSpeed
-        end
+        -- Do not override game speed when SpeedBoost is off.
     end
 
     if AntiStun then
