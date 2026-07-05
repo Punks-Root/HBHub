@@ -25,6 +25,8 @@ local dashBoostDuration = 0.18
 local dashing = false
 local dashEndTime = 0
 local dashVelocityPart
+local savedKeyStatus = LocalPlayer:GetAttribute("HBKeyStatus") or "trial"
+local savedTrialStart = LocalPlayer:GetAttribute("HBTrialStart")
 
 local function UpdateBoostedSpeed()
     if Humanoid then
@@ -74,86 +76,317 @@ end
 LocalPlayer.CharacterAdded:Connect(UpdateCharacter)
 
 -- GUI
+local TweenService = game:GetService("TweenService")
+local TrialDuration = 1800
+local ActivationKey = "WEAVERHB2026"
+local trialStartTime = nil
+local trialActive = false
+local permanentUnlocked = false
+local panelHidden = false
+local compactMode = false
+
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "HB_Sigiloso"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 240, 0, 300)
-MainFrame.Position = UDim2.new(0.4, 0, 0.2, 0)
-MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-MainFrame.BackgroundTransparency = 0.4
+MainFrame.Size = UDim2.new(0, 260, 0, 390)
+MainFrame.Position = UDim2.new(0.4, 0, 0.18, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(14, 16, 22)
+MainFrame.BackgroundTransparency = 0.05
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Parent = ScreenGui
 
 local FrameCorner = Instance.new("UICorner")
-FrameCorner.CornerRadius = UDim.new(0, 10)
+FrameCorner.CornerRadius = UDim.new(0, 12)
 FrameCorner.Parent = MainFrame
 
+local Stroke = Instance.new("UIStroke")
+Stroke.Color = Color3.fromRGB(90, 120, 180)
+Stroke.Thickness = 1.2
+Stroke.Parent = MainFrame
+
+local AccentBar = Instance.new("Frame")
+AccentBar.Size = UDim2.new(1, 0, 0, 3)
+AccentBar.Position = UDim2.new(0, 0, 0, 0)
+AccentBar.BackgroundColor3 = Color3.fromRGB(120, 180, 255)
+AccentBar.BorderSizePixel = 0
+AccentBar.Parent = MainFrame
+
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 40)
-Title.Position = UDim2.new(0, 0, 0, 0)
-Title.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-Title.BackgroundTransparency = 0.15
+Title.Size = UDim2.new(1, -70, 0, 38)
+Title.Position = UDim2.new(0, 10, 0, 8)
+Title.BackgroundTransparency = 1
 Title.Text = "⚡ HB Sigiloso"
-Title.TextColor3 = Color3.fromRGB(255, 210, 120)
+Title.TextColor3 = Color3.fromRGB(255, 220, 140)
 Title.TextSize = 18
 Title.Font = Enum.Font.GothamBold
+Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = MainFrame
 
-local TitleCorner = Instance.new("UICorner")
-TitleCorner.CornerRadius = UDim.new(0, 10)
-TitleCorner.Parent = Title
+local HideBtn = Instance.new("TextButton")
+HideBtn.Size = UDim2.new(0, 30, 0, 30)
+HideBtn.Position = UDim2.new(1, -40, 0, 10)
+HideBtn.BackgroundColor3 = Color3.fromRGB(72, 72, 84)
+HideBtn.Text = "—"
+HideBtn.TextColor3 = Color3.new(1, 1, 1)
+HideBtn.Font = Enum.Font.GothamBold
+HideBtn.TextSize = 16
+HideBtn.BorderSizePixel = 0
+HideBtn.Parent = MainFrame
+
+local HideBtnCorner = Instance.new("UICorner")
+HideBtnCorner.CornerRadius = UDim.new(0, 8)
+HideBtnCorner.Parent = HideBtn
+
+local CompactBtn = Instance.new("TextButton")
+CompactBtn.Size = UDim2.new(0, 30, 0, 30)
+CompactBtn.Position = UDim2.new(1, -76, 0, 10)
+CompactBtn.BackgroundColor3 = Color3.fromRGB(72, 72, 84)
+CompactBtn.Text = "□"
+CompactBtn.TextColor3 = Color3.new(1, 1, 1)
+CompactBtn.Font = Enum.Font.GothamBold
+CompactBtn.TextSize = 14
+CompactBtn.BorderSizePixel = 0
+CompactBtn.Parent = MainFrame
+
+local CompactBtnCorner = Instance.new("UICorner")
+CompactBtnCorner.CornerRadius = UDim.new(0, 8)
+CompactBtnCorner.Parent = CompactBtn
 
 local InfoLabel = Instance.new("TextLabel")
-InfoLabel.Size = UDim2.new(1, 0, 0, 20)
-InfoLabel.Position = UDim2.new(0, 0, 0, 40)
+InfoLabel.Size = UDim2.new(1, -20, 0, 18)
+InfoLabel.Position = UDim2.new(0, 10, 0, 48)
 InfoLabel.BackgroundTransparency = 1
-InfoLabel.Text = "RIGHT SHIFT para ocultar | Arrastra para mover"
-InfoLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-InfoLabel.TextSize = 13
+InfoLabel.Text = "Shift derecho para ocultar • Arrastra para mover"
+InfoLabel.TextColor3 = Color3.fromRGB(180, 190, 210)
+InfoLabel.TextSize = 12
 InfoLabel.Font = Enum.Font.Gotham
+InfoLabel.TextXAlignment = Enum.TextXAlignment.Left
 InfoLabel.Parent = MainFrame
+
+local AccessFrame = Instance.new("Frame")
+AccessFrame.Size = UDim2.new(1, -16, 0, 88)
+AccessFrame.Position = UDim2.new(0, 8, 0, 70)
+AccessFrame.BackgroundColor3 = Color3.fromRGB(24, 28, 38)
+AccessFrame.BorderSizePixel = 0
+AccessFrame.Parent = MainFrame
+
+local AccessCorner = Instance.new("UICorner")
+AccessCorner.CornerRadius = UDim.new(0, 10)
+AccessCorner.Parent = AccessFrame
+
+local AccessTitle = Instance.new("TextLabel")
+AccessTitle.Size = UDim2.new(1, -12, 0, 18)
+AccessTitle.Position = UDim2.new(0, 6, 0, 6)
+AccessTitle.BackgroundTransparency = 1
+AccessTitle.Text = "Acceso"
+AccessTitle.TextColor3 = Color3.fromRGB(255, 220, 140)
+AccessTitle.TextSize = 13
+AccessTitle.Font = Enum.Font.GothamBold
+AccessTitle.TextXAlignment = Enum.TextXAlignment.Left
+AccessTitle.Parent = AccessFrame
+
+AccessStatusLabel = Instance.new("TextLabel")
+AccessStatusLabel.Size = UDim2.new(1, -12, 0, 20)
+AccessStatusLabel.Position = UDim2.new(0, 6, 0, 24)
+AccessStatusLabel.BackgroundTransparency = 1
+AccessStatusLabel.Text = "Cargando..."
+AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 220, 100)
+AccessStatusLabel.TextSize = 12
+AccessStatusLabel.Font = Enum.Font.Gotham
+AccessStatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+AccessStatusLabel.Parent = AccessFrame
+
+KeyBox = Instance.new("TextBox")
+KeyBox.Size = UDim2.new(0.62, 0, 0, 24)
+KeyBox.Position = UDim2.new(0, 6, 0, 48)
+KeyBox.BackgroundColor3 = Color3.fromRGB(36, 40, 50)
+KeyBox.TextColor3 = Color3.new(1, 1, 1)
+KeyBox.PlaceholderText = "Key permanente"
+KeyBox.PlaceholderColor3 = Color3.fromRGB(140, 150, 170)
+KeyBox.TextSize = 12
+KeyBox.Font = Enum.Font.Gotham
+KeyBox.ClearTextOnFocus = false
+KeyBox.BorderSizePixel = 0
+KeyBox.Parent = AccessFrame
+
+local KeyBoxCorner = Instance.new("UICorner")
+KeyBoxCorner.CornerRadius = UDim.new(0, 6)
+KeyBoxCorner.Parent = KeyBox
+
+local ActivateKeyBtn = Instance.new("TextButton")
+ActivateKeyBtn.Size = UDim2.new(0.3, -6, 0, 24)
+ActivateKeyBtn.Position = UDim2.new(0.62, 6, 0, 48)
+ActivateKeyBtn.BackgroundColor3 = Color3.fromRGB(90, 140, 220)
+ActivateKeyBtn.Text = "Activar"
+ActivateKeyBtn.TextColor3 = Color3.new(1, 1, 1)
+ActivateKeyBtn.Font = Enum.Font.GothamBold
+ActivateKeyBtn.TextSize = 12
+ActivateKeyBtn.BorderSizePixel = 0
+ActivateKeyBtn.Parent = AccessFrame
+
+local ActivateKeyCorner = Instance.new("UICorner")
+ActivateKeyCorner.CornerRadius = UDim.new(0, 6)
+ActivateKeyCorner.Parent = ActivateKeyBtn
+
+local ButtonsFrame = Instance.new("Frame")
+ButtonsFrame.Size = UDim2.new(1, -16, 0, 220)
+ButtonsFrame.Position = UDim2.new(0, 8, 0, 168)
+ButtonsFrame.BackgroundTransparency = 1
+ButtonsFrame.Parent = MainFrame
 
 local function CreateButton(text, positionY)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.9, 0, 0, 38)
-    btn.Position = UDim2.new(0.05, 0, positionY, 0)
-    btn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+    btn.Size = UDim2.new(1, 0, 0, 34)
+    btn.Position = UDim2.new(0, 0, 0, positionY)
+    btn.BackgroundColor3 = Color3.fromRGB(70, 70, 80)
     btn.TextColor3 = Color3.new(1, 1, 1)
     btn.Font = Enum.Font.Gotham
-    btn.TextSize = 15
+    btn.TextSize = 14
     btn.Text = text .. ": OFF"
     btn.BorderSizePixel = 0
-    btn.Parent = MainFrame
+    btn.Parent = ButtonsFrame
 
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, 8)
     corner.Parent = btn
 
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.fromRGB(90, 100, 120)
+    stroke.Thickness = 0.8
+    stroke.Parent = btn
+
     return btn
 end
 
-local DashBtn = CreateButton("🚀 No Dash CD", 0.18)
-local SpeedBtn = CreateButton("⚡ Speed Boost", 0.32)
-local StunBtn = CreateButton("🛡️ Anti Stun", 0.46)
-local RagdollBtn = CreateButton("🎯 Anti Ragdoll", 0.60)
-local HitboxBtn = CreateButton("📦 Hitbox Expand", 0.74)
+local DashBtn = CreateButton("🚀 No Dash CD", 0)
+local SpeedBtn = CreateButton("⚡ Speed Boost", 40)
+local StunBtn = CreateButton("🛡️ Anti Stun", 80)
+local RagdollBtn = CreateButton("🎯 Anti Ragdoll", 120)
+local HitboxBtn = CreateButton("📦 Hitbox Expand", 160)
 
 local function UpdateButton(button, enabled)
     local label = button.Text:match("^.+:") or button.Text
     button.Text = label .. " " .. (enabled and "ON" or "OFF")
-    button.BackgroundColor3 = enabled and Color3.fromRGB(80, 150, 80) or Color3.fromRGB(70, 70, 70)
+    button.BackgroundColor3 = enabled and Color3.fromRGB(80, 150, 80) or Color3.fromRGB(70, 70, 80)
+end
+
+local function SetPanelVisible(visible)
+    panelHidden = not visible
+    if visible then
+        MainFrame.Visible = true
+        FloatButton.Visible = false
+        MainFrame.Position = UDim2.new(0.4, 0, 0.18, 0)
+    else
+        MainFrame.Visible = false
+        FloatButton.Visible = true
+    end
+end
+
+local function SetCompactMode(enabled)
+    compactMode = enabled
+    if enabled then
+        MainFrame.Size = UDim2.new(0, 260, 0, 144)
+        ButtonsFrame.Visible = false
+        AccessFrame.Position = UDim2.new(0, 8, 0, 70)
+        AccessFrame.Size = UDim2.new(1, -16, 0, 60)
+        AccessTitle.Visible = false
+        AccessStatusLabel.Position = UDim2.new(0, 6, 0, 10)
+        KeyBox.Visible = false
+        ActivateKeyBtn.Visible = false
+    else
+        MainFrame.Size = UDim2.new(0, 260, 0, 390)
+        ButtonsFrame.Visible = true
+        AccessFrame.Position = UDim2.new(0, 8, 0, 70)
+        AccessFrame.Size = UDim2.new(1, -16, 0, 88)
+        AccessTitle.Visible = true
+        AccessStatusLabel.Position = UDim2.new(0, 6, 0, 24)
+        KeyBox.Visible = true
+        ActivateKeyBtn.Visible = true
+    end
+end
+
+local function UpdateAccessUI()
+    if permanentUnlocked then
+        AccessStatusLabel.Text = "Estado: Key permanente activa"
+        AccessStatusLabel.TextColor3 = Color3.fromRGB(120, 255, 145)
+        ActivateKeyBtn.Text = "Activada"
+        ActivateKeyBtn.BackgroundColor3 = Color3.fromRGB(55, 120, 75)
+    elseif trialActive then
+        local elapsed = tick() - trialStartTime
+        local remaining = math.max(0, TrialDuration - elapsed)
+        local mins = math.floor(remaining / 60)
+        local secs = math.floor(remaining % 60)
+        AccessStatusLabel.Text = string.format("Prueba gratuita: %02d:%02d", mins, secs)
+        AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 220, 100)
+        ActivateKeyBtn.Text = "Activar"
+        ActivateKeyBtn.BackgroundColor3 = Color3.fromRGB(90, 140, 220)
+    else
+        AccessStatusLabel.Text = "Prueba finalizada • Activa la key permanente"
+        AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 115, 115)
+        ActivateKeyBtn.Text = "Activar"
+        ActivateKeyBtn.BackgroundColor3 = Color3.fromRGB(90, 140, 220)
+    end
+end
+
+local function StartFreeTrial()
+    if permanentUnlocked then
+        return
+    end
+    trialStartTime = tick()
+    trialActive = true
+    LocalPlayer:SetAttribute("HBTrialStart", trialStartTime)
+    LocalPlayer:SetAttribute("HBKeyStatus", "trial")
+    UpdateAccessUI()
+end
+
+local function ActivatePermanentKey()
+    local entered = string.lower(KeyBox.Text or "")
+    if entered == string.lower(ActivationKey) then
+        permanentUnlocked = true
+        trialActive = false
+        LocalPlayer:SetAttribute("HBKeyStatus", "active")
+        LocalPlayer:SetAttribute("HBTrialStart", 0)
+        UpdateAccessUI()
+        KeyBox.Text = ""
+    else
+        KeyBox.Text = ""
+        KeyBox.PlaceholderText = "Key incorrecta"
+        AccessStatusLabel.Text = "Key incorrecta • prueba otra"
+        AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 115, 115)
+    end
+end
+
+local function CanUseFeatures()
+    if permanentUnlocked then
+        return true
+    end
+    if trialActive and trialStartTime then
+        local elapsed = tick() - trialStartTime
+        return elapsed < TrialDuration
+    end
+    return false
 end
 
 DashBtn.MouseButton1Click:Connect(function()
+    if not CanUseFeatures() then
+        AccessStatusLabel.Text = "Activa la key para usar funciones"
+        AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 115, 115)
+        return
+    end
     NoDashCD = not NoDashCD
     UpdateButton(DashBtn, NoDashCD)
 end)
 
 SpeedBtn.MouseButton1Click:Connect(function()
+    if not CanUseFeatures() then
+        AccessStatusLabel.Text = "Activa la key para usar funciones"
+        AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 115, 115)
+        return
+    end
     SpeedBoost = not SpeedBoost
     UpdateButton(SpeedBtn, SpeedBoost)
     if Humanoid then
@@ -167,18 +400,67 @@ SpeedBtn.MouseButton1Click:Connect(function()
 end)
 
 StunBtn.MouseButton1Click:Connect(function()
+    if not CanUseFeatures() then
+        AccessStatusLabel.Text = "Activa la key para usar funciones"
+        AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 115, 115)
+        return
+    end
     AntiStun = not AntiStun
     UpdateButton(StunBtn, AntiStun)
 end)
 
 RagdollBtn.MouseButton1Click:Connect(function()
+    if not CanUseFeatures() then
+        AccessStatusLabel.Text = "Activa la key para usar funciones"
+        AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 115, 115)
+        return
+    end
     AntiRagdoll = not AntiRagdoll
     UpdateButton(RagdollBtn, AntiRagdoll)
 end)
 
 HitboxBtn.MouseButton1Click:Connect(function()
+    if not CanUseFeatures() then
+        AccessStatusLabel.Text = "Activa la key para usar funciones"
+        AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 115, 115)
+        return
+    end
     HitboxExp = not HitboxExp
     UpdateButton(HitboxBtn, HitboxExp)
+end)
+
+HideBtn.MouseButton1Click:Connect(function()
+    SetPanelVisible(false)
+end)
+
+CompactBtn.MouseButton1Click:Connect(function()
+    SetCompactMode(not compactMode)
+end)
+
+ActivateKeyBtn.MouseButton1Click:Connect(function()
+    if not permanentUnlocked then
+        ActivatePermanentKey()
+    end
+end)
+
+local FloatButton = Instance.new("TextButton")
+FloatButton.Size = UDim2.new(0, 54, 0, 54)
+FloatButton.Position = UDim2.new(1, -68, 1, -70)
+FloatButton.BackgroundColor3 = Color3.fromRGB(60, 95, 180)
+FloatButton.Text = "HB"
+FloatButton.TextColor3 = Color3.new(1, 1, 1)
+FloatButton.Font = Enum.Font.GothamBold
+FloatButton.TextSize = 16
+FloatButton.BorderSizePixel = 0
+FloatButton.Visible = false
+FloatButton.Parent = ScreenGui
+
+local FloatButtonCorner = Instance.new("UICorner")
+FloatButtonCorner.CornerRadius = UDim.new(0, 14)
+FloatButtonCorner.Parent = FloatButton
+
+FloatButton.MouseButton1Click:Connect(function()
+    SetPanelVisible(true)
 end)
 
 local dragging = false
@@ -216,6 +498,16 @@ UserInputService.InputChanged:Connect(function(input)
         )
     end
 end)
+
+if savedKeyStatus == "active" then
+    permanentUnlocked = true
+elseif savedTrialStart and (tick() - savedTrialStart) < TrialDuration then
+    trialStartTime = savedTrialStart
+    trialActive = true
+else
+    StartFreeTrial()
+end
+UpdateAccessUI()
 
 local function DestroyDashCooldownParts(root)
     if not root then
@@ -306,11 +598,11 @@ end
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if input.KeyCode == Enum.KeyCode.RightShift then
-        MainFrame.Visible = not MainFrame.Visible
+        SetPanelVisible(not MainFrame.Visible)
         return
     end
 
-    if NoDashCD and input.KeyCode == Enum.KeyCode.Q then
+    if NoDashCD and input.KeyCode == Enum.KeyCode.Q and CanUseFeatures() then
         DestroyDashCooldownParts(Character)
         ApplyDashBoost()
     end
@@ -327,70 +619,75 @@ RunService.Heartbeat:Connect(function()
             ClearDashVelocity()
             ApplyWalkSpeed()
         end
-    else
-        -- Do not override game speed when SpeedBoost is off.
     end
 
-    if AntiStun and Humanoid and HRP then
-        local state = Humanoid:GetState()
-        local stunnedState = state == Enum.HumanoidStateType.Frozen
-            or state == Enum.HumanoidStateType.GettingUp
-            or state == Enum.HumanoidStateType.PlatformStanding
-            or state == Enum.HumanoidStateType.Ragdoll
-            or state == Enum.HumanoidStateType.Seated
+    if CanUseFeatures() then
+        if AntiStun and Humanoid and HRP then
+            local state = Humanoid:GetState()
+            local stunnedState = state == Enum.HumanoidStateType.Frozen
+                or state == Enum.HumanoidStateType.GettingUp
+                or state == Enum.HumanoidStateType.PlatformStanding
+                or state == Enum.HumanoidStateType.Ragdoll
+                or state == Enum.HumanoidStateType.Seated
 
-        if stunnedState then
-            Humanoid.PlatformStand = false
-            Humanoid.Sit = false
-            Humanoid.AutoRotate = true
+            if stunnedState then
+                Humanoid.PlatformStand = false
+                Humanoid.Sit = false
+                Humanoid.AutoRotate = true
 
-            local targetSpeed = GetTargetWalkSpeed()
-            if Humanoid.WalkSpeed < targetSpeed then
-                Humanoid.WalkSpeed = math.min(targetSpeed, Humanoid.WalkSpeed + 2.5)
+                local targetSpeed = GetTargetWalkSpeed()
+                if Humanoid.WalkSpeed < targetSpeed then
+                    Humanoid.WalkSpeed = math.min(targetSpeed, Humanoid.WalkSpeed + 2.5)
+                else
+                    Humanoid.WalkSpeed = targetSpeed
+                end
+
+                if Humanoid.JumpPower < 50 then
+                    Humanoid.JumpPower = 50
+                end
+                if Humanoid.JumpHeight < 7.2 then
+                    Humanoid.JumpHeight = 7.2
+                end
+
+                if HRP.AssemblyLinearVelocity.Magnitude < 8 then
+                    HRP.AssemblyLinearVelocity = Vector3.new(HRP.AssemblyLinearVelocity.X * 0.7, math.max(HRP.AssemblyLinearVelocity.Y, 0), HRP.AssemblyLinearVelocity.Z * 0.7)
+                end
             else
-                Humanoid.WalkSpeed = targetSpeed
+                ApplyWalkSpeed()
             end
+        end
 
-            if Humanoid.JumpPower < 50 then
-                Humanoid.JumpPower = 50
+        if AntiRagdoll and HRP then
+            if Humanoid.PlatformStand then
+                Humanoid.PlatformStand = false
             end
-            if Humanoid.JumpHeight < 7.2 then
-                Humanoid.JumpHeight = 7.2
+            if Humanoid.Sit then
+                Humanoid.Sit = false
             end
+            Humanoid.AutoRotate = true
+            HRP.AssemblyLinearVelocity = Vector3.new(
+                HRP.AssemblyLinearVelocity.X * 0.6,
+                math.max(HRP.AssemblyLinearVelocity.Y, 0),
+                HRP.AssemblyLinearVelocity.Z * 0.6
+            )
+            HRP.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+        end
 
-            if HRP.AssemblyLinearVelocity.Magnitude < 8 then
-                HRP.AssemblyLinearVelocity = Vector3.new(HRP.AssemblyLinearVelocity.X * 0.7, math.max(HRP.AssemblyLinearVelocity.Y, 0), HRP.AssemblyLinearVelocity.Z * 0.7)
+        if NoDashCD then
+            DestroyDashCooldownParts(Character)
+        end
+
+        if HitboxExp and Character then
+            local tool = Character:FindFirstChildOfClass("Tool")
+            if tool then
+                ExpandHitboxes(tool)
             end
-        else
-            ApplyWalkSpeed()
         end
     end
 
-    if AntiRagdoll and HRP then
-        if Humanoid.PlatformStand then
-            Humanoid.PlatformStand = false
-        end
-        if Humanoid.Sit then
-            Humanoid.Sit = false
-        end
-        Humanoid.AutoRotate = true
-        HRP.AssemblyLinearVelocity = Vector3.new(
-            HRP.AssemblyLinearVelocity.X * 0.6,
-            math.max(HRP.AssemblyLinearVelocity.Y, 0),
-            HRP.AssemblyLinearVelocity.Z * 0.6
-        )
-        HRP.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-    end
-
-    if NoDashCD then
-        DestroyDashCooldownParts(Character)
-    end
-
-    if HitboxExp and Character then
-        local tool = Character:FindFirstChildOfClass("Tool")
-        if tool then
-            ExpandHitboxes(tool)
-        end
+    if trialActive and trialStartTime and (tick() - trialStartTime) >= TrialDuration then
+        trialActive = false
+        UpdateAccessUI()
     end
 end)
 

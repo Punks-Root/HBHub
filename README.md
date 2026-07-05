@@ -18,3 +18,6 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/Punks-Root/HBHub/main
 3- Anti Stun: Ayuda a evitar que el personaje quede aturdido o con la movilidad muy reducida.
 4- Anti Ragdoll: Evita que el personaje quede totalmente caído o sin control, corrigiendo su estado físico.(Provoca baneo temporal no usar por el momento)
 5- Hitbox Expand: Amplía los hitboxes de las herramientas para que tengan un alcance mayor.
+
+## Sitio web
+La web del proyecto está en la carpeta `docs/`. Puedes publicar fácilmente con GitHub Pages desde la rama `main` seleccionando la carpeta `docs/` como fuente.
