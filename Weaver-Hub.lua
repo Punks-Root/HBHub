@@ -6,6 +6,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local GuiService = game:GetService("GuiService")
+local StarterGui = game:GetService("StarterGui")
 
 local LocalPlayer = Players.LocalPlayer
 local Character
@@ -444,10 +445,20 @@ end)
 RequestKeyBtn.MouseButton1Click:Connect(function()
     local url = "https://discord.gg/43sdHbsngU"
     local opened = false
-    local success, err = pcall(function()
+    local success = pcall(function()
         opened = GuiService:OpenBrowserWindow(url)
     end)
-    if success and opened then
+
+    if not opened then
+        local browserSuccess = false
+        pcall(function()
+            StarterGui:SetCore("OpenBrowserWindow", url)
+            browserSuccess = true
+        end)
+        opened = opened or browserSuccess
+    end
+
+    if opened then
         return
     end
 
