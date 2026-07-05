@@ -172,7 +172,7 @@ InfoLabel.TextXAlignment = Enum.TextXAlignment.Left
 InfoLabel.Parent = MainFrame
 
 local AccessFrame = Instance.new("Frame")
-AccessFrame.Size = UDim2.new(1, -16, 0, 108)
+AccessFrame.Size = UDim2.new(1, -16, 0, 148)
 AccessFrame.Position = UDim2.new(0, 8, 0, 70)
 AccessFrame.BackgroundColor3 = Color3.fromRGB(24, 28, 38)
 AccessFrame.BorderSizePixel = 0
@@ -237,13 +237,13 @@ ActivateKeyCorner.CornerRadius = UDim.new(0, 6)
 ActivateKeyCorner.Parent = ActivateKeyBtn
 
 local RequestKeyBtn = Instance.new("TextButton")
-RequestKeyBtn.Size = UDim2.new(0.96, 0, 0, 24)
-RequestKeyBtn.Position = UDim2.new(0, 6, 0, 76)
+RequestKeyBtn.Size = UDim2.new(0.96, 0, 0, 28)
+RequestKeyBtn.Position = UDim2.new(0, 6, 0, 80)
 RequestKeyBtn.BackgroundColor3 = Color3.fromRGB(120, 90, 220)
-RequestKeyBtn.Text = "Pedir key en Discord"
+RequestKeyBtn.Text = "Obtener key"
 RequestKeyBtn.TextColor3 = Color3.new(1, 1, 1)
 RequestKeyBtn.Font = Enum.Font.GothamBold
-RequestKeyBtn.TextSize = 12
+RequestKeyBtn.TextSize = 13
 RequestKeyBtn.BorderSizePixel = 0
 RequestKeyBtn.Parent = AccessFrame
 
@@ -309,15 +309,15 @@ end
 local function SetCompactMode(enabled)
     compactMode = enabled
     if enabled then
-        MainFrame.Size = UDim2.new(0, 260, 0, 210)
+        MainFrame.Size = UDim2.new(0, 260, 0, 246)
         ButtonsFrame.Visible = false
         AccessFrame.Position = UDim2.new(0, 8, 0, 70)
-        AccessFrame.Size = UDim2.new(1, -16, 0, 108)
+        AccessFrame.Size = UDim2.new(1, -16, 0, 148)
     else
-        MainFrame.Size = UDim2.new(0, 260, 0, 390)
+        MainFrame.Size = UDim2.new(0, 260, 0, 426)
         ButtonsFrame.Visible = true
         AccessFrame.Position = UDim2.new(0, 8, 0, 70)
-        AccessFrame.Size = UDim2.new(1, -16, 0, 108)
+        AccessFrame.Size = UDim2.new(1, -16, 0, 148)
     end
     AccessTitle.Visible = true
     AccessStatusLabel.Position = UDim2.new(0, 6, 0, 24)
