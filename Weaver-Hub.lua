@@ -590,7 +590,7 @@ local function FindAimLockTarget()
     end
 
     local bestTarget = nil
-    local bestDistance = 70
+    local bestDistance = 90
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
@@ -642,13 +642,15 @@ local function ApplyAimLock()
         aimGyro = Instance.new("BodyGyro")
         aimGyro.Name = "HB_AimGyro"
         aimGyro.MaxTorque = Vector3.new(0, 1e5, 0)
-        aimGyro.P = 2000
-        aimGyro.D = 35
+        aimGyro.P = 2500
+        aimGyro.D = 40
         aimGyro.Parent = HRP
     end
 
     aimLockTarget = targetPlayer.Character
-    aimGyro.CFrame = CFrame.new(HRP.Position, Vector3.new(targetRoot.Position.X, HRP.Position.Y, targetRoot.Position.Z))
+    local targetPosition = Vector3.new(targetRoot.Position.X, HRP.Position.Y, targetRoot.Position.Z)
+    aimGyro.CFrame = CFrame.new(HRP.Position, targetPosition)
+    HRP.CFrame = CFrame.new(HRP.Position, targetPosition)
 end
 
 local function ClearDashVelocity()
@@ -699,19 +701,44 @@ local function ApplyDashBoost()
         Humanoid.WalkSpeed = dashBoostSpeed
 
         local dashDirection = GetDashDirection()
+        if dashDirection.Magnitude <= 0 then
+            dashDirection = Vector3.new(HRP.CFrame.LookVector.X, 0, HRP.CFrame.LookVector.Z).Unit
+        end
 
         ClearDashVelocity()
         dashVelocityPart = Instance.new("BodyVelocity")
         dashVelocityPart.Name = "HB_DashVelocity"
-        dashVelocityPart.MaxForce = Vector3.new(1e5, 0, 1e5)
-        dashVelocityPart.P = 900
-        dashVelocityPart.Velocity = dashDirection * dashBoostSpeed
+        dashVelocityPart.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+        dashVelocityPart.P = 10000
+        dashVelocityPart.Velocity = dashDirection * (dashBoostSpeed + 25)
         dashVelocityPart.Parent = HRP
     end
 end
 
-local function ExpandHitboxes(tool)
-    if not tool then
+local function GetAllTools()
+    local tools = {}
+
+    if Character then
+        for _, child in ipairs(Character:GetChildren()) do
+            if child:IsA("Tool") then
+                table.insert(tools, child)
+            end
+        end
+    end
+
+    if LocalPlayer and LocalPlayer.Backpack then
+        for _, child in ipairs(LocalPlayer.Backpack:GetChildren()) do
+            if child:IsA("Tool") then
+                table.insert(tools, child)
+            end
+        end
+    end
+
+    return tools
+end
+
+local function ExpandHitboxes()
+    if not HitboxExp or not Character then
         return
     end
 
@@ -727,27 +754,18 @@ local function ExpandHitboxes(tool)
             or name:find("weapon")
     end
 
-    local partsToExpand = {}
-
-    for _, child in ipairs(tool:GetDescendants()) do
-        if child:IsA("BasePart") then
-            table.insert(partsToExpand, child)
-        end
-    end
-
-    if Character then
-        for _, child in ipairs(Character:GetDescendants()) do
-            if child:IsA("BasePart") and shouldExpand(child) then
-                table.insert(partsToExpand, child)
+    for _, tool in ipairs(GetAllTools()) do
+        for _, part in ipairs(tool:GetDescendants()) do
+            if part:IsA("BasePart") and shouldExpand(part) then
+                local originalSize = part:GetAttribute("HB_OriginalSize")
+                if not originalSize then
+                    part:SetAttribute("HB_OriginalSize", part.Size)
+                    originalSize = part.Size
+                end
+                part.Size = originalSize + Vector3.new(2.8, 2.8, 2.8)
+                part.CanCollide = false
+                part.Transparency = math.min(part.Transparency + 0.2, 0.75)
             end
-        end
-    end
-
-    for _, part in ipairs(partsToExpand) do
-        if shouldExpand(part) then
-            part.Size = part.Size + Vector3.new(2.2, 2.2, 2.2)
-            part.CanCollide = false
-            part.Transparency = math.min(part.Transparency + 0.15, 0.95)
         end
     end
 end
@@ -780,6 +798,11 @@ RunService.Heartbeat:Connect(function()
             dashing = false
             ClearDashVelocity()
             ApplyWalkSpeed()
+        else
+            local dashDirection = GetDashDirection()
+            if dashDirection.Magnitude > 0 then
+                HRP.AssemblyLinearVelocity = Vector3.new(dashDirection.X * (dashBoostSpeed + 20), 0.1, dashDirection.Z * (dashBoostSpeed + 20))
+            end
         end
     end
 
@@ -840,10 +863,7 @@ RunService.Heartbeat:Connect(function()
         end
 
         if HitboxExp and Character then
-            local tool = Character:FindFirstChildOfClass("Tool")
-            if tool then
-                ExpandHitboxes(tool)
-            end
+            ExpandHitboxes()
         end
     end
 
