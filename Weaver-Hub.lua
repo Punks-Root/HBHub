@@ -442,11 +442,26 @@ ActivateKeyBtn.MouseButton1Click:Connect(function()
 end)
 
 RequestKeyBtn.MouseButton1Click:Connect(function()
+    local url = "https://discord.gg/43sdHbsngU"
+    local opened = false
     local success, err = pcall(function()
-        GuiService:OpenBrowserWindow("https://discord.gg/43sdHbsngU")
+        opened = GuiService:OpenBrowserWindow(url)
     end)
-    if not success then
-        AccessStatusLabel.Text = "No se pudo abrir Discord desde aquí"
+    if success and opened then
+        return
+    end
+
+    local clipboardSuccess = false
+    pcall(function()
+        setclipboard(url)
+        clipboardSuccess = true
+    end)
+
+    if clipboardSuccess then
+        AccessStatusLabel.Text = "No se pudo abrir Discord. Link copiado al portapapeles."
+        AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 255, 140)
+    else
+        AccessStatusLabel.Text = "No se pudo abrir Discord. Usa este enlace: discord.gg/43sdHbsngU"
         AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 115, 115)
     end
 end)
