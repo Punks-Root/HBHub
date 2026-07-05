@@ -127,39 +127,51 @@
   <div class="card">
     <div class="badge">Hosteable gratis</div>
     <h1>Obtener tu key de HB</h1>
-    <p>Esta web es simple, rápida y compatible con GitHub Pages o Netlify. Pulsa el botón para ver la key y copiala en el panel del script.</p>
-
-    <div class="key-box" id="keyBox">Pulsa “Obtener key”</div>
+    <!-- Formulario mínimo para recoger email y lanzar checkout. Comentarios para desarrolladores. -->
+    <div class="key-box" id="keyBox">Compra una key</div>
 
     <div class="actions">
-      <button class="primary" id="getKeyBtn">Obtener key</button>
-      <button class="secondary" id="copyBtn">Copiar key</button>
+      <input id="emailInput" type="email" placeholder="tu@correo.com" style="padding:10px;border-radius:12px;border:1px solid var(--line);flex:1;min-width:160px" />
+      <button class="primary" id="buyBtn">Comprar key — €7</button>
     </div>
 
-    <div class="status" id="status">Listo para usar.</div>
+    <div class="status" id="status"></div>
 
     <div class="footer">
-      Key actual: <strong>WEAVERHB2026</strong><br />
-      Puedes alojarla en GitHub Pages subiendo esta misma carpeta y activando Pages desde tu repositorio.
+      <!-- Footer visible minimal. -->
+      <strong>Pago seguro</strong>
     </div>
   </div>
 
   <script>
-    const key = "WEAVERHB2026";
+    // Código cliente: lanza checkout en el servidor y redirige al usuario.
     const keyBox = document.getElementById("keyBox");
     const status = document.getElementById("status");
+    const emailInput = document.getElementById("emailInput");
+    const buyBtn = document.getElementById("buyBtn");
 
-    document.getElementById("getKeyBtn").addEventListener("click", () => {
-      keyBox.textContent = key;
-      status.textContent = "Key lista para copiar.";
-    });
-
-    document.getElementById("copyBtn").addEventListener("click", async () => {
+    buyBtn.addEventListener("click", async () => {
+      const email = (emailInput.value || "").trim();
+      if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        status.textContent = "Introduce un correo válido.";
+        return;
+      }
+      status.textContent = "Creando sesión de pago...";
       try {
-        await navigator.clipboard.writeText(key);
-        status.textContent = "Key copiada al portapapeles.";
+        const res = await fetch('/create-checkout-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        if (data.url) {
+          // Redirige a Stripe Checkout
+          window.location = data.url;
+        } else {
+          status.textContent = data.error || 'Error al crear checkout.';
+        }
       } catch (err) {
-        status.textContent = "No se pudo copiar automáticamente. Copia la key manualmente.";
+        status.textContent = 'Error de red. Intenta de nuevo.';
       }
     });
   </script>
