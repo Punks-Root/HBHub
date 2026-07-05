@@ -32,9 +32,25 @@ local function UpdateBoostedSpeed()
     end
 end
 
+local function GetTargetWalkSpeed()
+    if not Humanoid then
+        return originalWalkSpeed
+    end
+
+    if dashing then
+        return dashBoostSpeed
+    end
+
+    if SpeedBoost then
+        return currentBoostedWalkSpeed
+    end
+
+    return originalWalkSpeed
+end
+
 local function ApplyWalkSpeed()
     if Humanoid and not dashing then
-        Humanoid.WalkSpeed = SpeedBoost and currentBoostedWalkSpeed or originalWalkSpeed
+        Humanoid.WalkSpeed = GetTargetWalkSpeed()
     end
 end
 
@@ -315,8 +331,37 @@ RunService.Heartbeat:Connect(function()
         -- Do not override game speed when SpeedBoost is off.
     end
 
-    if AntiStun then
-        if Humanoid.WalkSpeed < 10 then
+    if AntiStun and Humanoid and HRP then
+        local state = Humanoid:GetState()
+        local stunnedState = state == Enum.HumanoidStateType.Frozen
+            or state == Enum.HumanoidStateType.GettingUp
+            or state == Enum.HumanoidStateType.PlatformStanding
+            or state == Enum.HumanoidStateType.Ragdoll
+            or state == Enum.HumanoidStateType.Seated
+
+        if stunnedState then
+            Humanoid.PlatformStand = false
+            Humanoid.Sit = false
+            Humanoid.AutoRotate = true
+
+            local targetSpeed = GetTargetWalkSpeed()
+            if Humanoid.WalkSpeed < targetSpeed then
+                Humanoid.WalkSpeed = math.min(targetSpeed, Humanoid.WalkSpeed + 2.5)
+            else
+                Humanoid.WalkSpeed = targetSpeed
+            end
+
+            if Humanoid.JumpPower < 50 then
+                Humanoid.JumpPower = 50
+            end
+            if Humanoid.JumpHeight < 7.2 then
+                Humanoid.JumpHeight = 7.2
+            end
+
+            if HRP.AssemblyLinearVelocity.Magnitude < 8 then
+                HRP.AssemblyLinearVelocity = Vector3.new(HRP.AssemblyLinearVelocity.X * 0.7, math.max(HRP.AssemblyLinearVelocity.Y, 0), HRP.AssemblyLinearVelocity.Z * 0.7)
+            end
+        else
             ApplyWalkSpeed()
         end
     end
