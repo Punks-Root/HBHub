@@ -84,7 +84,7 @@ local ActivationKeys = {
 }
 local permanentUnlocked = false
 local panelHidden = false
-local compactMode = true
+local compactMode = false
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "HB_Sigiloso"
@@ -270,7 +270,7 @@ local SpeedBtn = CreateButton("⚡ Speed Boost", 40)
 local StunBtn = CreateButton("🛡️ Anti Stun", 80)
 local RagdollBtn = CreateButton("🎯 Anti Ragdoll", 120)
 local HitboxBtn = CreateButton("📦 Hitbox Expand", 160)
-ButtonsFrame.Visible = false
+ButtonsFrame.Visible = true
 
 local function UpdateButton(button, enabled)
     local label = button.Text:match("^.+:") or button.Text
@@ -327,13 +327,14 @@ local function ActivatePermanentKey()
     end
     if valid then
         permanentUnlocked = true
-        NoDashCD = true
-        SpeedBoost = true
-        AntiStun = true
-        AntiRagdoll = true
-        HitboxExp = true
         LocalPlayer:SetAttribute("HBKeyStatus", "active")
         UpdateAccessUI()
+        SetCompactMode(false)
+        UpdateButton(DashBtn, NoDashCD)
+        UpdateButton(SpeedBtn, SpeedBoost)
+        UpdateButton(StunBtn, AntiStun)
+        UpdateButton(RagdollBtn, AntiRagdoll)
+        UpdateButton(HitboxBtn, HitboxExp)
         KeyBox.Text = ""
     else
         KeyBox.Text = ""
@@ -348,28 +349,61 @@ local function CanUseFeatures()
 end
 
 DashBtn.MouseButton1Click:Connect(function()
-    AccessStatusLabel.Text = "Usa la key desde Discord para activar funciones"
-    AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 115, 115)
+    if not CanUseFeatures() then
+        AccessStatusLabel.Text = "Activa la key primero para usar esto"
+        AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 115, 115)
+        return
+    end
+    NoDashCD = not NoDashCD
+    UpdateButton(DashBtn, NoDashCD)
 end)
 
 SpeedBtn.MouseButton1Click:Connect(function()
-    AccessStatusLabel.Text = "Usa la key desde Discord para activar funciones"
-    AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 115, 115)
+    if not CanUseFeatures() then
+        AccessStatusLabel.Text = "Activa la key primero para usar esto"
+        AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 115, 115)
+        return
+    end
+    SpeedBoost = not SpeedBoost
+    UpdateButton(SpeedBtn, SpeedBoost)
+    if Humanoid then
+        if SpeedBoost then
+            UpdateBoostedSpeed()
+            Humanoid.WalkSpeed = currentBoostedWalkSpeed
+        else
+            Humanoid.WalkSpeed = originalWalkSpeed
+        end
+    end
 end)
 
 StunBtn.MouseButton1Click:Connect(function()
-    AccessStatusLabel.Text = "Usa la key desde Discord para activar funciones"
-    AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 115, 115)
+    if not CanUseFeatures() then
+        AccessStatusLabel.Text = "Activa la key primero para usar esto"
+        AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 115, 115)
+        return
+    end
+    AntiStun = not AntiStun
+    UpdateButton(StunBtn, AntiStun)
 end)
 
 RagdollBtn.MouseButton1Click:Connect(function()
-    AccessStatusLabel.Text = "Usa la key desde Discord para activar funciones"
-    AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 115, 115)
+    if not CanUseFeatures() then
+        AccessStatusLabel.Text = "Activa la key primero para usar esto"
+        AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 115, 115)
+        return
+    end
+    AntiRagdoll = not AntiRagdoll
+    UpdateButton(RagdollBtn, AntiRagdoll)
 end)
 
 HitboxBtn.MouseButton1Click:Connect(function()
-    AccessStatusLabel.Text = "Usa la key desde Discord para activar funciones"
-    AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 115, 115)
+    if not CanUseFeatures() then
+        AccessStatusLabel.Text = "Activa la key primero para usar esto"
+        AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 115, 115)
+        return
+    end
+    HitboxExp = not HitboxExp
+    UpdateButton(HitboxBtn, HitboxExp)
 end)
 
 HideBtn.MouseButton1Click:Connect(function()
