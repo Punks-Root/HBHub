@@ -23,13 +23,14 @@ local AimLock = false
 local originalWalkSpeed = 16
 local defaultBoostedWalkSpeed = 25
 local currentBoostedWalkSpeed = defaultBoostedWalkSpeed
-local dashBoostSpeed = 45
-local dashBoostDuration = 0.1
+local dashBoostSpeed = 42
+local dashBoostDuration = 0.12
 local dashing = false
 local dashEndTime = 0
 local dashVelocityPart
 local aimGyro
 local aimLockTarget
+local hitboxScale = Vector3.new(3.0, 3.0, 3.0)
 local savedKeyStatus = LocalPlayer:GetAttribute("HBKeyStatus") or "inactive"
 local trialActive = false
 
@@ -590,25 +591,23 @@ local function FindAimLockTarget()
     end
 
     local bestTarget = nil
-    local bestDistance = 90
+    local bestDistance = 80
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
             local targetHumanoid = player.Character:FindFirstChildOfClass("Humanoid")
             local targetRoot = player.Character:FindFirstChild("HumanoidRootPart")
-            if targetHumanoid and targetRoot and targetHumanoid.Health > 0 then
-                if player.Team ~= LocalPlayer.Team then
-                    local distance = (targetRoot.Position - HRP.Position).Magnitude
-                    if distance < bestDistance then
-                        local direction = (targetRoot.Position - HRP.Position).Unit
-                        local rayParams = RaycastParams.new()
-                        rayParams.FilterType = Enum.RaycastFilterType.Exclude
-                        rayParams.FilterDescendantsInstances = {Character}
-                        local result = workspace:Raycast(HRP.Position + Vector3.new(0, 2, 0), direction * distance, rayParams)
-                        if not result or result.Instance:IsDescendantOf(player.Character) then
-                            bestTarget = player
-                            bestDistance = distance
-                        end
+            if targetHumanoid and targetRoot and targetHumanoid.Health > 0 and player.Team ~= LocalPlayer.Team then
+                local distance = (targetRoot.Position - HRP.Position).Magnitude
+                if distance < bestDistance then
+                    local direction = (targetRoot.Position - HRP.Position).Unit
+                    local rayParams = RaycastParams.new()
+                    rayParams.FilterType = Enum.RaycastFilterType.Exclude
+                    rayParams.FilterDescendantsInstances = {Character}
+                    local result = workspace:Raycast(HRP.Position + Vector3.new(0, 2, 0), direction * distance, rayParams)
+                    if not result or result.Instance:IsDescendantOf(player.Character) then
+                        bestTarget = player
+                        bestDistance = distance
                     end
                 end
             end
@@ -642,7 +641,7 @@ local function ApplyAimLock()
         aimGyro = Instance.new("BodyGyro")
         aimGyro.Name = "HB_AimGyro"
         aimGyro.MaxTorque = Vector3.new(0, 1e5, 0)
-        aimGyro.P = 2500
+        aimGyro.P = 3000
         aimGyro.D = 40
         aimGyro.Parent = HRP
     end
@@ -650,7 +649,6 @@ local function ApplyAimLock()
     aimLockTarget = targetPlayer.Character
     local targetPosition = Vector3.new(targetRoot.Position.X, HRP.Position.Y, targetRoot.Position.Z)
     aimGyro.CFrame = CFrame.new(HRP.Position, targetPosition)
-    HRP.CFrame = CFrame.new(HRP.Position, targetPosition)
 end
 
 local function ClearDashVelocity()
@@ -682,12 +680,12 @@ local function GetDashDirection()
         moveVector += right
     end
 
-    if moveVector.Magnitude > 0 then
+    if moveVector.Magnitude > 0.001 then
         return moveVector.Unit
     end
 
     local moveDirection = Humanoid.MoveDirection
-    if moveDirection.Magnitude > 0 then
+    if moveDirection.Magnitude > 0.001 then
         return Vector3.new(moveDirection.X, 0, moveDirection.Z).Unit
     end
 
@@ -695,24 +693,27 @@ local function GetDashDirection()
 end
 
 local function ApplyDashBoost()
-    if Humanoid and HRP and not dashing then
-        dashing = true
-        dashEndTime = tick() + dashBoostDuration
-        Humanoid.WalkSpeed = dashBoostSpeed
-
-        local dashDirection = GetDashDirection()
-        if dashDirection.Magnitude <= 0 then
-            dashDirection = Vector3.new(HRP.CFrame.LookVector.X, 0, HRP.CFrame.LookVector.Z).Unit
-        end
-
-        ClearDashVelocity()
-        dashVelocityPart = Instance.new("BodyVelocity")
-        dashVelocityPart.Name = "HB_DashVelocity"
-        dashVelocityPart.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-        dashVelocityPart.P = 10000
-        dashVelocityPart.Velocity = dashDirection * (dashBoostSpeed + 25)
-        dashVelocityPart.Parent = HRP
+    if not Humanoid or not HRP or dashing then
+        return
     end
+
+    local dashDirection = GetDashDirection()
+    if dashDirection.Magnitude < 0.001 then
+        dashDirection = Vector3.new(HRP.CFrame.LookVector.X, 0, HRP.CFrame.LookVector.Z).Unit
+    end
+
+    dashing = true
+    dashEndTime = tick() + dashBoostDuration
+
+    local impulseVector = dashDirection * (dashBoostSpeed + 18)
+    HRP.AssemblyLinearVelocity = Vector3.new(impulseVector.X, math.min(HRP.AssemblyLinearVelocity.Y, 0), impulseVector.Z)
+
+    task.delay(dashBoostDuration, function()
+        if dashing then
+            dashing = false
+            ApplyWalkSpeed()
+        end
+    end)
 end
 
 local function GetAllTools()
@@ -743,6 +744,9 @@ local function ExpandHitboxes()
     end
 
     local function shouldExpand(part)
+        if not part or not part:IsA("BasePart") then
+            return false
+        end
         if part == HRP then
             return false
         end
@@ -752,21 +756,34 @@ local function ExpandHitboxes()
             or name:find("blade")
             or name:find("sword")
             or name:find("weapon")
+            or name:find("part")
     end
+
+    local expandedParts = {}
 
     for _, tool in ipairs(GetAllTools()) do
         for _, part in ipairs(tool:GetDescendants()) do
-            if part:IsA("BasePart") and shouldExpand(part) then
-                local originalSize = part:GetAttribute("HB_OriginalSize")
-                if not originalSize then
-                    part:SetAttribute("HB_OriginalSize", part.Size)
-                    originalSize = part.Size
-                end
-                part.Size = originalSize + Vector3.new(2.8, 2.8, 2.8)
-                part.CanCollide = false
-                part.Transparency = math.min(part.Transparency + 0.2, 0.75)
+            if shouldExpand(part) then
+                table.insert(expandedParts, part)
             end
         end
+    end
+
+    for _, part in ipairs(Character:GetDescendants()) do
+        if shouldExpand(part) then
+            table.insert(expandedParts, part)
+        end
+    end
+
+    for _, part in ipairs(expandedParts) do
+        local originalSize = part:GetAttribute("HB_OriginalSize")
+        if not originalSize then
+            part:SetAttribute("HB_OriginalSize", part.Size)
+            originalSize = part.Size
+        end
+        part.Size = originalSize + hitboxScale
+        part.CanCollide = false
+        part.Transparency = math.max(part.Transparency, 0.2)
     end
 end
 
@@ -796,13 +813,7 @@ RunService.Heartbeat:Connect(function()
     if dashing then
         if tick() >= dashEndTime then
             dashing = false
-            ClearDashVelocity()
             ApplyWalkSpeed()
-        else
-            local dashDirection = GetDashDirection()
-            if dashDirection.Magnitude > 0 then
-                HRP.AssemblyLinearVelocity = Vector3.new(dashDirection.X * (dashBoostSpeed + 20), 0.1, dashDirection.Z * (dashBoostSpeed + 20))
-            end
         end
     end
 
@@ -843,19 +854,24 @@ RunService.Heartbeat:Connect(function()
         end
 
         if AntiRagdoll and HRP then
-            if Humanoid.PlatformStand then
+            local state = Humanoid:GetState()
+            local shouldRecover = state == Enum.HumanoidStateType.FallingDown
+                or state == Enum.HumanoidStateType.GettingUp
+                or state == Enum.HumanoidStateType.PlatformStanding
+                or state == Enum.HumanoidStateType.Ragdoll
+                or state == Enum.HumanoidStateType.Seated
+
+            if shouldRecover then
                 Humanoid.PlatformStand = false
-            end
-            if Humanoid.Sit then
                 Humanoid.Sit = false
+                Humanoid.AutoRotate = true
+                if state ~= Enum.HumanoidStateType.Running then
+                    Humanoid:ChangeState(Enum.HumanoidStateType.Running)
+                end
+                local velocity = HRP.AssemblyLinearVelocity
+                HRP.AssemblyLinearVelocity = Vector3.new(velocity.X, 0, velocity.Z)
+                HRP.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
             end
-            Humanoid.AutoRotate = true
-            HRP.AssemblyLinearVelocity = Vector3.new(
-                HRP.AssemblyLinearVelocity.X * 0.6,
-                math.max(HRP.AssemblyLinearVelocity.Y, 0),
-                HRP.AssemblyLinearVelocity.Z * 0.6
-            )
-            HRP.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
         end
 
         if NoDashCD then
@@ -865,6 +881,7 @@ RunService.Heartbeat:Connect(function()
         if HitboxExp and Character then
             ExpandHitboxes()
         end
+
     end
 
     -- No trial countdown, solo key manual.
