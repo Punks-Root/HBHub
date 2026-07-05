@@ -5,6 +5,7 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local GuiService = game:GetService("GuiService")
 
 local LocalPlayer = Players.LocalPlayer
 local Character
@@ -171,7 +172,7 @@ InfoLabel.TextXAlignment = Enum.TextXAlignment.Left
 InfoLabel.Parent = MainFrame
 
 local AccessFrame = Instance.new("Frame")
-AccessFrame.Size = UDim2.new(1, -16, 0, 88)
+AccessFrame.Size = UDim2.new(1, -16, 0, 108)
 AccessFrame.Position = UDim2.new(0, 8, 0, 70)
 AccessFrame.BackgroundColor3 = Color3.fromRGB(24, 28, 38)
 AccessFrame.BorderSizePixel = 0
@@ -235,6 +236,21 @@ local ActivateKeyCorner = Instance.new("UICorner")
 ActivateKeyCorner.CornerRadius = UDim.new(0, 6)
 ActivateKeyCorner.Parent = ActivateKeyBtn
 
+local RequestKeyBtn = Instance.new("TextButton")
+RequestKeyBtn.Size = UDim2.new(0.96, 0, 0, 24)
+RequestKeyBtn.Position = UDim2.new(0, 6, 0, 76)
+RequestKeyBtn.BackgroundColor3 = Color3.fromRGB(120, 90, 220)
+RequestKeyBtn.Text = "Pedir key en Discord"
+RequestKeyBtn.TextColor3 = Color3.new(1, 1, 1)
+RequestKeyBtn.Font = Enum.Font.GothamBold
+RequestKeyBtn.TextSize = 12
+RequestKeyBtn.BorderSizePixel = 0
+RequestKeyBtn.Parent = AccessFrame
+
+local RequestKeyCorner = Instance.new("UICorner")
+RequestKeyCorner.CornerRadius = UDim.new(0, 6)
+RequestKeyCorner.Parent = RequestKeyBtn
+
 local ButtonsFrame = Instance.new("Frame")
 ButtonsFrame.Size = UDim2.new(1, -16, 0, 220)
 ButtonsFrame.Position = UDim2.new(0, 8, 0, 168)
@@ -296,12 +312,12 @@ local function SetCompactMode(enabled)
         MainFrame.Size = UDim2.new(0, 260, 0, 210)
         ButtonsFrame.Visible = false
         AccessFrame.Position = UDim2.new(0, 8, 0, 70)
-        AccessFrame.Size = UDim2.new(1, -16, 0, 88)
+        AccessFrame.Size = UDim2.new(1, -16, 0, 108)
     else
         MainFrame.Size = UDim2.new(0, 260, 0, 390)
         ButtonsFrame.Visible = true
         AccessFrame.Position = UDim2.new(0, 8, 0, 70)
-        AccessFrame.Size = UDim2.new(1, -16, 0, 88)
+        AccessFrame.Size = UDim2.new(1, -16, 0, 108)
     end
     AccessTitle.Visible = true
     AccessStatusLabel.Position = UDim2.new(0, 6, 0, 24)
@@ -423,6 +439,16 @@ end)
 
 ActivateKeyBtn.MouseButton1Click:Connect(function()
     ActivatePermanentKey()
+end)
+
+RequestKeyBtn.MouseButton1Click:Connect(function()
+    local success, err = pcall(function()
+        GuiService:OpenBrowserWindow("https://discord.gg/43sdHbsngU")
+    end)
+    if not success then
+        AccessStatusLabel.Text = "No se pudo abrir Discord desde aquí"
+        AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 115, 115)
+    end
 end)
 
 local FloatButton = Instance.new("TextButton")
