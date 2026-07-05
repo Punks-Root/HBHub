@@ -23,14 +23,14 @@ local AimLock = false
 local originalWalkSpeed = 16
 local defaultBoostedWalkSpeed = 25
 local currentBoostedWalkSpeed = defaultBoostedWalkSpeed
-local dashBoostSpeed = 42
-local dashBoostDuration = 0.12
+local dashBoostSpeed = 38
+local dashBoostDuration = 0.10
 local dashing = false
 local dashEndTime = 0
 local dashVelocityPart
 local aimGyro
 local aimLockTarget
-local hitboxScale = Vector3.new(3.0, 3.0, 3.0)
+local hitboxScale = Vector3.new(2.4, 2.4, 2.4)
 local savedKeyStatus = LocalPlayer:GetAttribute("HBKeyStatus") or "inactive"
 local trialActive = false
 
@@ -591,7 +591,7 @@ local function FindAimLockTarget()
     end
 
     local bestTarget = nil
-    local bestDistance = 80
+    local bestDistance = 75
 
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
@@ -705,7 +705,7 @@ local function ApplyDashBoost()
     dashing = true
     dashEndTime = tick() + dashBoostDuration
 
-    local impulseVector = dashDirection * (dashBoostSpeed + 18)
+    local impulseVector = dashDirection * (dashBoostSpeed + 12)
     HRP.AssemblyLinearVelocity = Vector3.new(impulseVector.X, math.min(HRP.AssemblyLinearVelocity.Y, 0), impulseVector.Z)
 
     task.delay(dashBoostDuration, function()
@@ -783,7 +783,7 @@ local function ExpandHitboxes()
         end
         part.Size = originalSize + hitboxScale
         part.CanCollide = false
-        part.Transparency = math.max(part.Transparency, 0.2)
+        part.Transparency = math.max(part.Transparency, 0.15)
     end
 end
 
