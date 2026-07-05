@@ -20,4 +20,4 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/Punks-Root/HBHub/main
 5- Hitbox Expand: Amplía los hitboxes de las herramientas para que tengan un alcance mayor.
 
 ## Sitio web
-La web del proyecto está en la carpeta `docs/`. Puedes publicar fácilmente con GitHub Pages desde la rama `main` seleccionando la carpeta `docs/` como fuente.
+La web del proyecto está en la carpeta `docs/`. Puedes publicar con GitHub Pages desde la rama `main` seleccionando la carpeta `docs/` como fuente.

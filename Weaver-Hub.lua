@@ -25,8 +25,8 @@ local dashBoostDuration = 0.18
 local dashing = false
 local dashEndTime = 0
 local dashVelocityPart
-local savedKeyStatus = LocalPlayer:GetAttribute("HBKeyStatus") or "trial"
-local savedTrialStart = LocalPlayer:GetAttribute("HBTrialStart")
+local savedKeyStatus = LocalPlayer:GetAttribute("HBKeyStatus") or "inactive"
+local trialActive = false
 
 local function UpdateBoostedSpeed()
     if Humanoid then
@@ -77,13 +77,14 @@ LocalPlayer.CharacterAdded:Connect(UpdateCharacter)
 
 -- GUI
 local TweenService = game:GetService("TweenService")
-local TrialDuration = 1800
-local ActivationKey = "WEAVERHB2026"
-local trialStartTime = nil
-local trialActive = false
+local ActivationKeys = {
+    "KEY-ALPHA-1234567890",
+    "KEY-BETA-0987654321",
+    "KEY-GAMMA-1122334455"
+}
 local permanentUnlocked = false
 local panelHidden = false
-local compactMode = false
+local compactMode = true
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "HB_Sigiloso"
@@ -135,6 +136,7 @@ HideBtn.TextColor3 = Color3.new(1, 1, 1)
 HideBtn.Font = Enum.Font.GothamBold
 HideBtn.TextSize = 16
 HideBtn.BorderSizePixel = 0
+HideBtn.Visible = false
 HideBtn.Parent = MainFrame
 
 local HideBtnCorner = Instance.new("UICorner")
@@ -150,6 +152,7 @@ CompactBtn.TextColor3 = Color3.new(1, 1, 1)
 CompactBtn.Font = Enum.Font.GothamBold
 CompactBtn.TextSize = 14
 CompactBtn.BorderSizePixel = 0
+CompactBtn.Visible = false
 CompactBtn.Parent = MainFrame
 
 local CompactBtnCorner = Instance.new("UICorner")
@@ -160,7 +163,7 @@ local InfoLabel = Instance.new("TextLabel")
 InfoLabel.Size = UDim2.new(1, -20, 0, 18)
 InfoLabel.Position = UDim2.new(0, 10, 0, 48)
 InfoLabel.BackgroundTransparency = 1
-InfoLabel.Text = "Shift derecho para ocultar • Arrastra para mover"
+InfoLabel.Text = "Introduce la key que conseguiste en Discord"
 InfoLabel.TextColor3 = Color3.fromRGB(180, 190, 210)
 InfoLabel.TextSize = 12
 InfoLabel.Font = Enum.Font.Gotham
@@ -193,7 +196,7 @@ AccessStatusLabel = Instance.new("TextLabel")
 AccessStatusLabel.Size = UDim2.new(1, -12, 0, 20)
 AccessStatusLabel.Position = UDim2.new(0, 6, 0, 24)
 AccessStatusLabel.BackgroundTransparency = 1
-AccessStatusLabel.Text = "Cargando..."
+AccessStatusLabel.Text = "Introduce la key desde Discord"
 AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 220, 100)
 AccessStatusLabel.TextSize = 12
 AccessStatusLabel.Font = Enum.Font.Gotham
@@ -267,6 +270,7 @@ local SpeedBtn = CreateButton("⚡ Speed Boost", 40)
 local StunBtn = CreateButton("🛡️ Anti Stun", 80)
 local RagdollBtn = CreateButton("🎯 Anti Ragdoll", 120)
 local HitboxBtn = CreateButton("📦 Hitbox Expand", 160)
+ButtonsFrame.Visible = false
 
 local function UpdateButton(button, enabled)
     local label = button.Text:match("^.+:") or button.Text
@@ -288,145 +292,84 @@ end
 
 local function SetCompactMode(enabled)
     compactMode = enabled
-    if enabled then
-        MainFrame.Size = UDim2.new(0, 260, 0, 144)
-        ButtonsFrame.Visible = false
-        AccessFrame.Position = UDim2.new(0, 8, 0, 70)
-        AccessFrame.Size = UDim2.new(1, -16, 0, 60)
-        AccessTitle.Visible = false
-        AccessStatusLabel.Position = UDim2.new(0, 6, 0, 10)
-        KeyBox.Visible = false
-        ActivateKeyBtn.Visible = false
-    else
-        MainFrame.Size = UDim2.new(0, 260, 0, 390)
-        ButtonsFrame.Visible = true
-        AccessFrame.Position = UDim2.new(0, 8, 0, 70)
-        AccessFrame.Size = UDim2.new(1, -16, 0, 88)
-        AccessTitle.Visible = true
-        AccessStatusLabel.Position = UDim2.new(0, 6, 0, 24)
-        KeyBox.Visible = true
-        ActivateKeyBtn.Visible = true
-    end
+    MainFrame.Size = UDim2.new(0, 260, 0, 210)
+    ButtonsFrame.Visible = false
+    AccessFrame.Position = UDim2.new(0, 8, 0, 70)
+    AccessFrame.Size = UDim2.new(1, -16, 0, 88)
+    AccessTitle.Visible = true
+    AccessStatusLabel.Position = UDim2.new(0, 6, 0, 24)
+    KeyBox.Visible = true
+    ActivateKeyBtn.Visible = true
 end
 
 local function UpdateAccessUI()
     if permanentUnlocked then
-        AccessStatusLabel.Text = "Estado: Key permanente activa"
+        AccessStatusLabel.Text = "Key válida. Funciones activas."
         AccessStatusLabel.TextColor3 = Color3.fromRGB(120, 255, 145)
         ActivateKeyBtn.Text = "Activada"
         ActivateKeyBtn.BackgroundColor3 = Color3.fromRGB(55, 120, 75)
-    elseif trialActive then
-        local elapsed = tick() - trialStartTime
-        local remaining = math.max(0, TrialDuration - elapsed)
-        local mins = math.floor(remaining / 60)
-        local secs = math.floor(remaining % 60)
-        AccessStatusLabel.Text = string.format("Prueba gratuita: %02d:%02d", mins, secs)
-        AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 220, 100)
-        ActivateKeyBtn.Text = "Activar"
-        ActivateKeyBtn.BackgroundColor3 = Color3.fromRGB(90, 140, 220)
     else
-        AccessStatusLabel.Text = "Prueba finalizada • Activa la key permanente"
+        AccessStatusLabel.Text = "Introduce la key que conseguiste en Discord"
         AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 115, 115)
         ActivateKeyBtn.Text = "Activar"
         ActivateKeyBtn.BackgroundColor3 = Color3.fromRGB(90, 140, 220)
     end
 end
 
-local function StartFreeTrial()
-    if permanentUnlocked then
-        return
-    end
-    trialStartTime = tick()
-    trialActive = true
-    LocalPlayer:SetAttribute("HBTrialStart", trialStartTime)
-    LocalPlayer:SetAttribute("HBKeyStatus", "trial")
-    UpdateAccessUI()
-end
-
 local function ActivatePermanentKey()
-    local entered = string.lower(KeyBox.Text or "")
-    if entered == string.lower(ActivationKey) then
+    local entered = string.upper((KeyBox.Text or ""))
+    local valid = false
+    for _, key in ipairs(ActivationKeys) do
+        if entered == key then
+            valid = true
+            break
+        end
+    end
+    if valid then
         permanentUnlocked = true
-        trialActive = false
+        NoDashCD = true
+        SpeedBoost = true
+        AntiStun = true
+        AntiRagdoll = true
+        HitboxExp = true
         LocalPlayer:SetAttribute("HBKeyStatus", "active")
-        LocalPlayer:SetAttribute("HBTrialStart", 0)
         UpdateAccessUI()
         KeyBox.Text = ""
     else
         KeyBox.Text = ""
         KeyBox.PlaceholderText = "Key incorrecta"
-        AccessStatusLabel.Text = "Key incorrecta • prueba otra"
+        AccessStatusLabel.Text = "Key incorrecta • usa Discord"
         AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 115, 115)
     end
 end
 
 local function CanUseFeatures()
-    if permanentUnlocked then
-        return true
-    end
-    if trialActive and trialStartTime then
-        local elapsed = tick() - trialStartTime
-        return elapsed < TrialDuration
-    end
-    return false
+    return permanentUnlocked
 end
 
 DashBtn.MouseButton1Click:Connect(function()
-    if not CanUseFeatures() then
-        AccessStatusLabel.Text = "Activa la key para usar funciones"
-        AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 115, 115)
-        return
-    end
-    NoDashCD = not NoDashCD
-    UpdateButton(DashBtn, NoDashCD)
+    AccessStatusLabel.Text = "Usa la key desde Discord para activar funciones"
+    AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 115, 115)
 end)
 
 SpeedBtn.MouseButton1Click:Connect(function()
-    if not CanUseFeatures() then
-        AccessStatusLabel.Text = "Activa la key para usar funciones"
-        AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 115, 115)
-        return
-    end
-    SpeedBoost = not SpeedBoost
-    UpdateButton(SpeedBtn, SpeedBoost)
-    if Humanoid then
-        if SpeedBoost then
-            UpdateBoostedSpeed()
-            Humanoid.WalkSpeed = currentBoostedWalkSpeed
-        else
-            Humanoid.WalkSpeed = originalWalkSpeed
-        end
-    end
+    AccessStatusLabel.Text = "Usa la key desde Discord para activar funciones"
+    AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 115, 115)
 end)
 
 StunBtn.MouseButton1Click:Connect(function()
-    if not CanUseFeatures() then
-        AccessStatusLabel.Text = "Activa la key para usar funciones"
-        AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 115, 115)
-        return
-    end
-    AntiStun = not AntiStun
-    UpdateButton(StunBtn, AntiStun)
+    AccessStatusLabel.Text = "Usa la key desde Discord para activar funciones"
+    AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 115, 115)
 end)
 
 RagdollBtn.MouseButton1Click:Connect(function()
-    if not CanUseFeatures() then
-        AccessStatusLabel.Text = "Activa la key para usar funciones"
-        AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 115, 115)
-        return
-    end
-    AntiRagdoll = not AntiRagdoll
-    UpdateButton(RagdollBtn, AntiRagdoll)
+    AccessStatusLabel.Text = "Usa la key desde Discord para activar funciones"
+    AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 115, 115)
 end)
 
 HitboxBtn.MouseButton1Click:Connect(function()
-    if not CanUseFeatures() then
-        AccessStatusLabel.Text = "Activa la key para usar funciones"
-        AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 115, 115)
-        return
-    end
-    HitboxExp = not HitboxExp
-    UpdateButton(HitboxBtn, HitboxExp)
+    AccessStatusLabel.Text = "Usa la key desde Discord para activar funciones"
+    AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 115, 115)
 end)
 
 HideBtn.MouseButton1Click:Connect(function()
@@ -438,9 +381,7 @@ CompactBtn.MouseButton1Click:Connect(function()
 end)
 
 ActivateKeyBtn.MouseButton1Click:Connect(function()
-    if not permanentUnlocked then
-        ActivatePermanentKey()
-    end
+    ActivatePermanentKey()
 end)
 
 local FloatButton = Instance.new("TextButton")
@@ -501,13 +442,13 @@ end)
 
 if savedKeyStatus == "active" then
     permanentUnlocked = true
-elseif savedTrialStart and (tick() - savedTrialStart) < TrialDuration then
-    trialStartTime = savedTrialStart
-    trialActive = true
 else
-    StartFreeTrial()
+    permanentUnlocked = false
 end
 UpdateAccessUI()
+SetCompactMode(true)
+
+SetCompactMode(true)
 
 local function DestroyDashCooldownParts(root)
     if not root then
@@ -685,10 +626,7 @@ RunService.Heartbeat:Connect(function()
         end
     end
 
-    if trialActive and trialStartTime and (tick() - trialStartTime) >= TrialDuration then
-        trialActive = false
-        UpdateAccessUI()
-    end
+    -- No trial countdown, solo key manual.
 end)
 
 LocalPlayer.CharacterAdded:Connect(function(newChar)

@@ -125,55 +125,15 @@
 </head>
 <body>
   <div class="card">
-    <div class="badge">Hosteable gratis</div>
-    <h1>Obtener tu key de HB</h1>
-    <!-- Formulario mínimo para recoger email y lanzar checkout. Comentarios para desarrolladores. -->
-    <div class="key-box" id="keyBox">Compra una key</div>
-
-    <div class="actions">
-      <input id="emailInput" type="email" placeholder="tu@correo.com" style="padding:10px;border-radius:12px;border:1px solid var(--line);flex:1;min-width:160px" />
-      <button class="primary" id="buyBtn">Comprar key — €7</button>
-    </div>
-
-    <div class="status" id="status"></div>
+    <div class="badge">Solo Discord</div>
+    <h1>Consigue tu key en Discord</h1>
+    <div class="key-box">La key se entrega manualmente en Discord tras el pago por PayPal.</div>
 
     <div class="footer">
-      <!-- Footer visible minimal. -->
-      <strong>Pago seguro</strong>
+      <p style="margin:0;">No hay pago directo aquí. En Discord te explico cómo pagar y recibir la key.</p>
     </div>
   </div>
-
-  <script>
-    // Código cliente: lanza checkout en el servidor y redirige al usuario.
-    const keyBox = document.getElementById("keyBox");
-    const status = document.getElementById("status");
-    const emailInput = document.getElementById("emailInput");
-    const buyBtn = document.getElementById("buyBtn");
-
-    buyBtn.addEventListener("click", async () => {
-      const email = (emailInput.value || "").trim();
-      if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-        status.textContent = "Introduce un correo válido.";
-        return;
-      }
-      status.textContent = "Creando sesión de pago...";
-      try {
-        const res = await fetch('/create-paypal-order', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email })
-        });
-        const data = await res.json();
-        if (data.url) {
-          // Redirige a Stripe Checkout
-          window.location = data.url;
-        } else {
-          status.textContent = data.error || 'Error al crear checkout.';
-        }
-      } catch (err) {
-        status.textContent = 'Error de red. Intenta de nuevo.';
-      }
-    });
-  </script>
+</body>
+</html>
 </body>
 </html>
