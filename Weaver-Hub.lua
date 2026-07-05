@@ -292,10 +292,17 @@ end
 
 local function SetCompactMode(enabled)
     compactMode = enabled
-    MainFrame.Size = UDim2.new(0, 260, 0, 210)
-    ButtonsFrame.Visible = false
-    AccessFrame.Position = UDim2.new(0, 8, 0, 70)
-    AccessFrame.Size = UDim2.new(1, -16, 0, 88)
+    if enabled then
+        MainFrame.Size = UDim2.new(0, 260, 0, 210)
+        ButtonsFrame.Visible = false
+        AccessFrame.Position = UDim2.new(0, 8, 0, 70)
+        AccessFrame.Size = UDim2.new(1, -16, 0, 88)
+    else
+        MainFrame.Size = UDim2.new(0, 260, 0, 390)
+        ButtonsFrame.Visible = true
+        AccessFrame.Position = UDim2.new(0, 8, 0, 70)
+        AccessFrame.Size = UDim2.new(1, -16, 0, 88)
+    end
     AccessTitle.Visible = true
     AccessStatusLabel.Position = UDim2.new(0, 6, 0, 24)
     KeyBox.Visible = true
@@ -480,9 +487,7 @@ else
     permanentUnlocked = false
 end
 UpdateAccessUI()
-SetCompactMode(true)
-
-SetCompactMode(true)
+SetCompactMode(not permanentUnlocked)
 
 local function DestroyDashCooldownParts(root)
     if not root then
