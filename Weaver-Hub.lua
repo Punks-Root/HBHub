@@ -18,15 +18,18 @@ local SpeedBoost = false
 local AntiStun = false
 local AntiRagdoll = false
 local HitboxExp = false
+local AimLock = false
 
 local originalWalkSpeed = 16
 local defaultBoostedWalkSpeed = 25
 local currentBoostedWalkSpeed = defaultBoostedWalkSpeed
-local dashBoostSpeed = 80
-local dashBoostDuration = 0.18
+local dashBoostSpeed = 45
+local dashBoostDuration = 0.1
 local dashing = false
 local dashEndTime = 0
 local dashVelocityPart
+local aimGyro
+local aimLockTarget
 local savedKeyStatus = LocalPlayer:GetAttribute("HBKeyStatus") or "inactive"
 local trialActive = false
 
@@ -287,6 +290,7 @@ local SpeedBtn = CreateButton("⚡ Speed Boost", 40)
 local StunBtn = CreateButton("🛡️ Anti Stun", 80)
 local RagdollBtn = CreateButton("🎯 Anti Ragdoll", 120)
 local HitboxBtn = CreateButton("📦 Hitbox Expand", 160)
+local AimLockBtn = CreateButton("🎯 Aim Lock", 200)
 ButtonsFrame.Visible = true
 
 local function UpdateButton(button, enabled)
@@ -359,6 +363,7 @@ local function ActivatePermanentKey()
         UpdateButton(StunBtn, AntiStun)
         UpdateButton(RagdollBtn, AntiRagdoll)
         UpdateButton(HitboxBtn, HitboxExp)
+        UpdateButton(AimLockBtn, AimLock)
         KeyBox.Text = ""
     else
         KeyBox.Text = ""
@@ -428,6 +433,21 @@ HitboxBtn.MouseButton1Click:Connect(function()
     end
     HitboxExp = not HitboxExp
     UpdateButton(HitboxBtn, HitboxExp)
+end)
+
+AimLockBtn.MouseButton1Click:Connect(function()
+    if not CanUseFeatures() then
+        AccessStatusLabel.Text = "Activa la key primero para usar esto"
+        AccessStatusLabel.TextColor3 = Color3.fromRGB(255, 115, 115)
+        return
+    end
+    AimLock = not AimLock
+    UpdateButton(AimLockBtn, AimLock)
+    if not AimLock then
+        ClearAimLock()
+    elseif Humanoid then
+        Humanoid.AutoRotate = false
+    end
 end)
 
 HideBtn.MouseButton1Click:Connect(function()
@@ -553,6 +573,84 @@ local function DestroyDashCooldownParts(root)
     end
 end
 
+local function ClearAimLock()
+    if aimGyro and aimGyro.Parent then
+        aimGyro:Destroy()
+    end
+    aimGyro = nil
+    aimLockTarget = nil
+    if Humanoid then
+        Humanoid.AutoRotate = true
+    end
+end
+
+local function FindAimLockTarget()
+    if not Character or not Humanoid or not HRP then
+        return nil
+    end
+
+    local bestTarget = nil
+    local bestDistance = 70
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local targetHumanoid = player.Character:FindFirstChildOfClass("Humanoid")
+            local targetRoot = player.Character:FindFirstChild("HumanoidRootPart")
+            if targetHumanoid and targetRoot and targetHumanoid.Health > 0 then
+                if player.Team ~= LocalPlayer.Team then
+                    local distance = (targetRoot.Position - HRP.Position).Magnitude
+                    if distance < bestDistance then
+                        local direction = (targetRoot.Position - HRP.Position).Unit
+                        local rayParams = RaycastParams.new()
+                        rayParams.FilterType = Enum.RaycastFilterType.Exclude
+                        rayParams.FilterDescendantsInstances = {Character}
+                        local result = workspace:Raycast(HRP.Position + Vector3.new(0, 2, 0), direction * distance, rayParams)
+                        if not result or result.Instance:IsDescendantOf(player.Character) then
+                            bestTarget = player
+                            bestDistance = distance
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return bestTarget
+end
+
+local function ApplyAimLock()
+    if not AimLock or not Humanoid or not HRP then
+        ClearAimLock()
+        return
+    end
+
+    local targetPlayer = FindAimLockTarget()
+    if not targetPlayer or not targetPlayer.Character then
+        ClearAimLock()
+        return
+    end
+
+    local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not targetRoot then
+        ClearAimLock()
+        return
+    end
+
+    Humanoid.AutoRotate = false
+
+    if not aimGyro then
+        aimGyro = Instance.new("BodyGyro")
+        aimGyro.Name = "HB_AimGyro"
+        aimGyro.MaxTorque = Vector3.new(0, 1e5, 0)
+        aimGyro.P = 2000
+        aimGyro.D = 35
+        aimGyro.Parent = HRP
+    end
+
+    aimLockTarget = targetPlayer.Character
+    aimGyro.CFrame = CFrame.new(HRP.Position, Vector3.new(targetRoot.Position.X, HRP.Position.Y, targetRoot.Position.Z))
+end
+
 local function ClearDashVelocity()
     if dashVelocityPart and dashVelocityPart.Parent then
         dashVelocityPart:Destroy()
@@ -606,7 +704,7 @@ local function ApplyDashBoost()
         dashVelocityPart = Instance.new("BodyVelocity")
         dashVelocityPart.Name = "HB_DashVelocity"
         dashVelocityPart.MaxForce = Vector3.new(1e5, 0, 1e5)
-        dashVelocityPart.P = 1250
+        dashVelocityPart.P = 900
         dashVelocityPart.Velocity = dashDirection * dashBoostSpeed
         dashVelocityPart.Parent = HRP
     end
@@ -616,14 +714,40 @@ local function ExpandHitboxes(tool)
     if not tool then
         return
     end
+
+    local function shouldExpand(part)
+        if part == HRP then
+            return false
+        end
+        local name = part.Name:lower()
+        return name:find("hitbox")
+            or name:find("handle")
+            or name:find("blade")
+            or name:find("sword")
+            or name:find("weapon")
+    end
+
+    local partsToExpand = {}
+
     for _, child in ipairs(tool:GetDescendants()) do
         if child:IsA("BasePart") then
-            local name = child.Name:lower()
-            if name:find("hitbox") then
-                child.Size = Vector3.new(15, 15, 15)
-                child.Transparency = 1
-                child.CanCollide = false
+            table.insert(partsToExpand, child)
+        end
+    end
+
+    if Character then
+        for _, child in ipairs(Character:GetDescendants()) do
+            if child:IsA("BasePart") and shouldExpand(child) then
+                table.insert(partsToExpand, child)
             end
+        end
+    end
+
+    for _, part in ipairs(partsToExpand) do
+        if shouldExpand(part) then
+            part.Size = part.Size + Vector3.new(2.2, 2.2, 2.2)
+            part.CanCollide = false
+            part.Transparency = math.min(part.Transparency + 0.15, 0.95)
         end
     end
 end
@@ -643,6 +767,12 @@ end)
 RunService.Heartbeat:Connect(function()
     if not Humanoid then
         return
+    end
+
+    if AimLock then
+        ApplyAimLock()
+    elseif aimGyro then
+        ClearAimLock()
     end
 
     if dashing then
@@ -722,6 +852,7 @@ end)
 
 LocalPlayer.CharacterAdded:Connect(function(newChar)
     UpdateCharacter(newChar)
+    ClearAimLock()
 end)
 
 print("✅ HB Sigiloso cargado")
