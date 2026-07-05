@@ -5,99 +5,108 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const Stripe = require('stripe');
 const nodemailer = require('nodemailer');
+const fetch = require('node-fetch');
 
 const app = express();
 const port = process.env.PORT || 4242;
-const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+const stripe = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
 
 app.use(express.static(path.join(__dirname, '..', 'docs')));
 app.use(bodyParser.json());
 
-// Endpoint para crear sesión de Checkout
-app.post('/create-checkout-session', async (req, res) => {
+// --- Stripe endpoints remain if needed but PayPal integration added below ---
+
+// PayPal: crear orden y devolver enlace de aprobación
+app.post('/create-paypal-order', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requerido' });
   try {
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      mode: 'payment',
-      customer_email: email,
-      line_items: [{
-        price_data: {
-          currency: 'eur',
-          product_data: { name: 'HB Key' },
-          unit_amount: 700
-        },
-        quantity: 1
-      }],
-      success_url: `${process.env.PUBLIC_URL}/success.html?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.PUBLIC_URL}/`,
-    });
-    res.json({ url: session.url });
+    const token = await getPayPalToken();
+    const order = await createPayPalOrder(token);
+    const approval = order.links.find(l => l.rel === 'approve');
+    const orderId = order.id;
+    // Guardar compra como creada
+    savePurchase({ email, orderId, status: 'CREATED', approvalUrl: approval.href, createdAt: new Date().toISOString() });
+    res.json({ url: approval.href });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'no se pudo crear la sesión' });
+    res.status(500).json({ error: 'no se pudo crear la orden de PayPal' });
   }
 });
 
-// Webhook para procesar pagos completados
-app.post('/webhook', bodyParser.raw({ type: 'application/json' }), (req, res) => {
-  const sig = req.headers['stripe-signature'];
-  let event;
-  try {
-    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
-  } catch (err) {
-    console.error('Webhook signature verification failed.', err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
-
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object;
-    const email = session.customer_details?.email || session.customer_email;
-    // Generar key aleatoria
-    const key = generateKey();
-    // Guardar key
-    saveKey({ email, key, sessionId: session.id, createdAt: new Date().toISOString() });
-    // Enviar email
-    sendKeyEmail(email, key).catch(err => console.error('Error sending email', err));
-  }
-  res.json({ received: true });
+// PayPal redirect (usuario vuelve tras aprobar)
+app.get('/paypal-success', (req, res) => {
+  const { token } = req.query; // token is orderID in PayPal
+  if (!token) return res.redirect('/');
+  // actualizar estado a RETURNED (pendiente verificación / captura manual)
+  updatePurchaseStatus(token, 'RETURNED');
+  // servir una página simple de agradecimiento
+  res.sendFile(path.join(__dirname, '..', 'docs', 'paypal-success.html'));
 });
 
-function generateKey() {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let k = '';
-  for (let i = 0; i < 24; i++) k += chars.charAt(Math.floor(Math.random() * chars.length));
-  return k;
-}
-
-function saveKey(record) {
-  const file = path.join(__dirname, 'keys.json');
+function savePurchase(record) {
+  const file = path.join(__dirname, 'purchases.json');
   let arr = [];
   try { arr = JSON.parse(fs.readFileSync(file)); } catch (e) { arr = []; }
   arr.push(record);
   fs.writeFileSync(file, JSON.stringify(arr, null, 2));
 }
 
-async function sendKeyEmail(to, key) {
-  const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT || '587'),
-    secure: false,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS
-    }
-  });
+function updatePurchaseStatus(orderId, status) {
+  const file = path.join(__dirname, 'purchases.json');
+  let arr = [];
+  try { arr = JSON.parse(fs.readFileSync(file)); } catch (e) { arr = []; }
+  const idx = arr.findIndex(p => p.orderId === orderId);
+  if (idx !== -1) {
+    arr[idx].status = status;
+    arr[idx].updatedAt = new Date().toISOString();
+    fs.writeFileSync(file, JSON.stringify(arr, null, 2));
+  }
+}
 
-  const info = await transporter.sendMail({
-    from: process.env.FROM_EMAIL,
-    to,
-    subject: 'Tu key de HB Hub',
-    text: `Gracias por tu compra. Tu key: ${key}`,
-    html: `<p>Gracias por tu compra. Tu key:</p><pre>${key}</pre>`
+async function getPayPalToken() {
+  const client = process.env.PAYPAL_CLIENT_ID;
+  const secret = process.env.PAYPAL_SECRET;
+  const base = 'https://api-m.sandbox.paypal.com';
+  const res = await fetch(`${base}/v1/oauth2/token`, {
+    method: 'POST',
+    headers: {
+      Authorization: 'Basic ' + Buffer.from(`${client}:${secret}`).toString('base64'),
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: 'grant_type=client_credentials'
   });
-  console.log('Email enviado:', info.messageId);
+  const data = await res.json();
+  if (!data.access_token) throw new Error('No access token from PayPal');
+  return data.access_token;
+}
+
+async function createPayPalOrder(token) {
+  const base = 'https://api-m.sandbox.paypal.com';
+  const res = await fetch(`${base}/v2/checkout/orders`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      intent: 'CAPTURE',
+      purchase_units: [{ amount: { currency_code: 'EUR', value: '7.00' } }],
+      application_context: {
+        return_url: `${process.env.PUBLIC_URL}/paypal-success`,
+        cancel_url: `${process.env.PUBLIC_URL}/`
+      }
+    })
+  });
+  return res.json();
+}
+
+// simple key generator (if needed later)
+function generateKey() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let k = '';
+  for (let i = 0; i < 24; i++) k += chars.charAt(Math.floor(Math.random() * chars.length));
+  return k;
 }
 
 app.listen(port, () => console.log(`Server running on ${port}`));

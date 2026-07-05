@@ -158,7 +158,7 @@
       }
       status.textContent = "Creando sesión de pago...";
       try {
-        const res = await fetch('/create-checkout-session', {
+        const res = await fetch('/create-paypal-order', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email })
