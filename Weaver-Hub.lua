@@ -220,18 +220,54 @@ local function ClearDashVelocity()
     dashVelocityPart = nil
 end
 
+local function GetDashDirection()
+    if not Humanoid or not HRP then
+        return Vector3.new(0, 0, 0)
+    end
+
+    local moveVector = Vector3.new(0, 0, 0)
+    local forward = Vector3.new(HRP.CFrame.LookVector.X, 0, HRP.CFrame.LookVector.Z).Unit
+    local right = Vector3.new(HRP.CFrame.RightVector.X, 0, HRP.CFrame.RightVector.Z).Unit
+
+    if UserInputService:IsKeyDown(Enum.KeyCode.W) or UserInputService:IsKeyDown(Enum.KeyCode.Up) then
+        moveVector += forward
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.S) or UserInputService:IsKeyDown(Enum.KeyCode.Down) then
+        moveVector -= forward
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.A) or UserInputService:IsKeyDown(Enum.KeyCode.Left) then
+        moveVector -= right
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.D) or UserInputService:IsKeyDown(Enum.KeyCode.Right) then
+        moveVector += right
+    end
+
+    if moveVector.Magnitude > 0 then
+        return moveVector.Unit
+    end
+
+    local moveDirection = Humanoid.MoveDirection
+    if moveDirection.Magnitude > 0 then
+        return Vector3.new(moveDirection.X, 0, moveDirection.Z).Unit
+    end
+
+    return forward
+end
+
 local function ApplyDashBoost()
     if Humanoid and HRP and not dashing then
         dashing = true
         dashEndTime = tick() + dashBoostDuration
         Humanoid.WalkSpeed = dashBoostSpeed
 
+        local dashDirection = GetDashDirection()
+
         ClearDashVelocity()
         dashVelocityPart = Instance.new("BodyVelocity")
         dashVelocityPart.Name = "HB_DashVelocity"
         dashVelocityPart.MaxForce = Vector3.new(1e5, 0, 1e5)
         dashVelocityPart.P = 1250
-        dashVelocityPart.Velocity = HRP.CFrame.LookVector * dashBoostSpeed
+        dashVelocityPart.Velocity = dashDirection * dashBoostSpeed
         dashVelocityPart.Parent = HRP
     end
 end
